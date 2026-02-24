@@ -1,0 +1,64 @@
+# ──────────────────────────────────────────────────────────────────────
+#  cloudbuild.yaml — Google Cloud Build CI/CD pipeline
+#  This file tells Cloud Build how to:
+#    1. Build the Docker image
+#    2. Push it to Google Artifact Registry
+#    3. Deploy it to Cloud Run automatically
+#
+#  How to trigger:
+#    Option A (manual):  gcloud builds submit --config cloudbuild.yaml .
+#    Option B (auto CI): Connect this repo in Cloud Build → Triggers page
+# ──────────────────────────────────────────────────────────────────────
+
+substitutions:
+  _SERVICE_NAME: edushield-ai        # Cloud Run service name
+  _REGION: asia-south1               # Mumbai region (closest to India 🇮🇳)
+  _REPO: edushield-repo              # Artifact Registry repository name
+
+steps:
+  # ── STEP 1: Build the Docker image ─────────────────────────────────
+  - name: "gcr.io/cloud-builders/docker"
+    args:
+      - "build"
+      - "-t"
+      - "${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO}/${_SERVICE_NAME}:$COMMIT_SHA"
+      - "-t"
+      - "${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO}/${_SERVICE_NAME}:latest"
+      - "."
+    dir: "."
+
+  # ── STEP 2: Push the image to Artifact Registry ─────────────────────
+  - name: "gcr.io/cloud-builders/docker"
+    args:
+      - "push"
+      - "${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO}/${_SERVICE_NAME}:$COMMIT_SHA"
+
+  - name: "gcr.io/cloud-builders/docker"
+    args:
+      - "push"
+      - "${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO}/${_SERVICE_NAME}:latest"
+
+  # ── STEP 3: Deploy to Cloud Run ─────────────────────────────────────
+  - name: "gcr.io/google.com/cloudsdktool/cloud-sdk"
+    entrypoint: gcloud
+    args:
+      - "run"
+      - "deploy"
+      - "${_SERVICE_NAME}"
+      - "--image=${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO}/${_SERVICE_NAME}:$COMMIT_SHA"
+      - "--region=${_REGION}"
+      - "--platform=managed"
+      - "--allow-unauthenticated"       # Public API — remove this for private deployments
+      - "--memory=512Mi"                # Enough for scikit-learn + numpy inference
+      - "--cpu=1"
+      - "--min-instances=0"             # Scale to zero when idle (saves cost)
+      - "--max-instances=5"             # Max 5 instances under load
+      - "--concurrency=80"             # Requests per container instance
+      - "--timeout=60"                 # 60s request timeout
+
+images:
+  - "${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO}/${_SERVICE_NAME}:$COMMIT_SHA"
+  - "${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO}/${_SERVICE_NAME}:latest"
+
+options:
+  logging: CLOUD_LOGGING_ONLY
