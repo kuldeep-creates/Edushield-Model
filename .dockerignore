@@ -1,41 +1,30 @@
-# .dockerignore — tells Docker (and Cloud Build) what NOT to include in the image.
-# This keeps the image small and the build fast.
+# .dockerignore — Files/folders excluded from the Docker build context.
+# This keeps the image small and the Cloud Build upload fast.
 
-# Exclude old misnamed DockerFile (we now use the correctly named Dockerfile)
+# Git metadata
+.git/
+.gitignore
+
+# Old misnamed file (we now use correctly named Dockerfile)
 DockerFile
 
 # Python cache
 __pycache__/
 *.pyc
 *.pyo
-*.pyd
-.Python
-*.egg-info/
-dist/
-build/
 
 # Virtual environments
 venv/
 .venv/
 env/
 
-# Development & IDE files
-.git/
-.gitignore
+# IDEs
 .vscode/
 .idea/
+
+# Markdown and deployment guides
 *.md
-*.txt
-!requirements.txt
+GCP_DEPLOY_GUIDE.md
 
-# Test files and logs
+# Logs
 *.log
-*_test.py
-test_*.py
-
-# DATA SETS are large and NOT needed in the container.
-# The container only needs model.pkl, app.py, and requirements.txt.
-DATA SETS/
-DATA SET GENERATE CODES/
-CODE BASE/
-DOCUMENTATION/
