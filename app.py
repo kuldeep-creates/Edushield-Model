@@ -41,21 +41,18 @@ except FileNotFoundError:
 # 2.  Feature constants (must match training)
 # ──────────────────────────────────────────────
 FEATURES = [
-    "Unit_Test_1",
-    "Score_Momentum",
-    "Overall_Attendance_Pct",
-    "Total_Days_Absent",
-    "Max_Absent_Streak_Length",
+    'Exam_1',
+    'Exam_2',
+    'Exam_3',
+    'Exam_4',
+    'Exam_5',
+    'Exam_6',
+    'Score_Momentum', 
+    'Latest_Score',
+    'Overall_Attendance_Pct', 
+    'Total_Days_Absent', 
+    'Max_Absent_Streak_Length'
 ]
-
-FEATURE_IMPORTANCE = {
-    "Score_Momentum": 61.6,
-    "Unit_Test_1": 21.1,
-    "Max_Absent_Streak_Length": 9.9,
-    "Overall_Attendance_Pct": 4.5,
-    "Total_Days_Absent": 2.9,
-}
-
 
 # ──────────────────────────────────────────────
 # 3.  Pydantic schemas
@@ -65,8 +62,14 @@ class SubjectRecord(BaseModel):
     """One subject record for a single student."""
     student_id: str = Field(..., example="STU00042")
     subject_name: str = Field(..., example="Mathematics")
-    unit_test_1: float = Field(..., ge=0, le=100, description="Score in Unit Test 1 (%)")
-    score_momentum: float = Field(..., description="Latest score minus Unit Test 1 score")
+    exam_1: float = Field(0.0, ge=0, le=100)
+    exam_2: float = Field(0.0, ge=0, le=100)
+    exam_3: float = Field(0.0, ge=0, le=100)
+    exam_4: float = Field(0.0, ge=0, le=100)
+    exam_5: float = Field(0.0, ge=0, le=100)
+    exam_6: float = Field(0.0, ge=0, le=100)
+    latest_score: float = Field(..., ge=0, le=100, description="Score of the most recent exam taken")
+    score_momentum: float = Field(..., description="Latest score minus average of previous scores")
     overall_attendance_pct: float = Field(..., ge=0, le=100)
     total_days_absent: int = Field(..., ge=0)
     max_absent_streak_length: int = Field(..., ge=0)
@@ -79,13 +82,19 @@ class SubjectRecord(BaseModel):
             "example": {
                 "student_id": "STU00042",
                 "subject_name": "Mathematics",
-                "unit_test_1": 65.0,
-                "score_momentum": -18.5,
+                "exam_1": 65.0,
+                "exam_2": 68.0,
+                "exam_3": 0.0,
+                "exam_4": 0.0,
+                "exam_5": 0.0,
+                "exam_6": 0.0,
+                "latest_score": 68.0,
+                "score_momentum": 3.0,
                 "overall_attendance_pct": 72.0,
                 "total_days_absent": 14,
                 "max_absent_streak_length": 3,
                 "days_enrolled": 150,
-                "historical_average": 68.0,
+                "historical_average": 66.0,
                 "discipline_flags": 0,
             }
         }
@@ -132,8 +141,14 @@ def apply_patches(record: SubjectRecord, class_avg_momentum: float, holiday_fact
     """
     patches = []
     features = {
-        "Unit_Test_1": record.unit_test_1,
+        "Exam_1": record.exam_1,
+        "Exam_2": record.exam_2,
+        "Exam_3": record.exam_3,
+        "Exam_4": record.exam_4,
+        "Exam_5": record.exam_5,
+        "Exam_6": record.exam_6,
         "Score_Momentum": record.score_momentum,
+        "Latest_Score": record.latest_score,
         "Overall_Attendance_Pct": record.overall_attendance_pct,
         "Total_Days_Absent": record.total_days_absent,
         "Max_Absent_Streak_Length": record.max_absent_streak_length,
@@ -166,7 +181,7 @@ def apply_patches(record: SubjectRecord, class_avg_momentum: float, holiday_fact
     if (
         record.historical_average is not None
         and record.historical_average < 40
-        and (record.unit_test_1 - record.historical_average) > 50
+        and (record.latest_score - record.historical_average) > 50
     ):
         patches.append(
             "PATCH 4: Miracle Fix — score jumped > 50 points from a low baseline. "
@@ -176,7 +191,7 @@ def apply_patches(record: SubjectRecord, class_avg_momentum: float, holiday_fact
 
     # PATCH 5: QUIET FAIL (perfect behaviour, silently failing)
     if record.overall_attendance_pct >= 95 and (record.discipline_flags or 0) == 0:
-        if features["Score_Momentum"] < -15 or record.unit_test_1 < 40:
+        if features["Score_Momentum"] < -15 or record.latest_score < 40:
             patches.append(
                 "PATCH 5: Quiet Fail — perfect behaviour but academically failing. "
                 "System elevated risk alert."
@@ -184,8 +199,8 @@ def apply_patches(record: SubjectRecord, class_avg_momentum: float, holiday_fact
             override_risk = 0.80
 
     # PATCH 2: ABSOLUTE FAILURE FLOOR
-    if record.unit_test_1 < 33:
-        patches.append("PATCH 2: Absolute Failure — Unit Test 1 below pass mark (33%).")
+    if record.latest_score < 33:
+        patches.append("PATCH 2: Absolute Failure — Latest Score below pass mark (33%).")
         if override_risk is None or override_risk < 0.55:
             override_risk = 0.55
 
@@ -218,8 +233,14 @@ def predict_record(
         feat_dict, patches, override_risk = apply_patches(record, class_avg_momentum, holiday_factor)
     else:
         feat_dict = {
-            "Unit_Test_1": record.unit_test_1,
+            "Exam_1": record.exam_1,
+            "Exam_2": record.exam_2,
+            "Exam_3": record.exam_3,
+            "Exam_4": record.exam_4,
+            "Exam_5": record.exam_5,
+            "Exam_6": record.exam_6,
             "Score_Momentum": record.score_momentum,
+            "Latest_Score": record.latest_score,
             "Overall_Attendance_Pct": record.overall_attendance_pct,
             "Total_Days_Absent": record.total_days_absent,
             "Max_Absent_Streak_Length": record.max_absent_streak_length,
