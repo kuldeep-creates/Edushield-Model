@@ -189,20 +189,24 @@ def apply_patches(record: SubjectRecord, class_avg_momentum: float, holiday_fact
         )
         override_risk = 0.65
 
-    # PATCH 5: QUIET FAIL (perfect behaviour, silently failing)
-    if record.overall_attendance_pct >= 95 and (record.discipline_flags or 0) == 0:
-        if features["Score_Momentum"] < -15 or record.latest_score < 40:
-            patches.append(
-                "PATCH 5: Quiet Fail — perfect behaviour but academically failing. "
-                "System elevated risk alert."
-            )
-            override_risk = 0.80
+    # PATCH 5: BORDERLINE PERFORMANCE (Strict Global Standard)
+    if record.latest_score < 45:
+        patches.append(
+            "PATCH 5: High Risk — Score < 45%. Student is extremely vulnerable to failing the final exam."
+        )
+        if override_risk is None or override_risk < 0.85:
+            override_risk = 0.85
+    elif record.latest_score < 55:
+        patches.append(
+            "PATCH 5: Borderline Warning — Score < 55%. Margins are too tight. Needs improvement to guarantee passing."
+        )
+        if override_risk is None or override_risk < 0.55:
+            override_risk = 0.55
 
     # PATCH 2: ABSOLUTE FAILURE FLOOR
     if record.latest_score < 33:
-        patches.append("PATCH 2: Absolute Failure — Latest Score below pass mark (33%).")
-        if override_risk is None or override_risk < 0.55:
-            override_risk = 0.55
+        patches.append("PATCH 2: Absolute Failure — Latest Score below ultimate pass mark (33%).")
+        override_risk = 0.95
 
     return features, patches, override_risk
 
@@ -212,12 +216,12 @@ def apply_patches(record: SubjectRecord, class_avg_momentum: float, holiday_fact
 # ──────────────────────────────────────────────
 
 def risk_label_and_reco(probability: float, subject: str) -> tuple[str, str]:
-    if probability >= 0.75:
-        return "CRITICAL RISK", f"Immediate teacher alert required. Student is failing {subject}."
+    if probability >= 0.70:
+        return "CRITICAL RISK", f"High probability of failure in {subject}. Immediate academic intervention required."
     elif probability >= 0.40:
-        return "WARNING", f"Monitor {subject} closely. Slight performance drop detected."
+        return "WARNING", f"Borderline performance in {subject}. Student is too close to failing and must improve."
     else:
-        return "SAFE", "No action required. Student is performing within expectations."
+        return "SAFE", "Student is performing securely above the failure margin."
 
 
 def predict_record(
