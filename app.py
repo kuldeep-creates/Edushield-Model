@@ -288,10 +288,9 @@ app = FastAPI(
     },
 )
 
-# Allow requests from the Next.js frontend and any cloud subdomains
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],          # Tighten this to your frontend URL in production
+    allow_origins=["http://localhost:3000", "*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
